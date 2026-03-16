@@ -2,11 +2,14 @@ import os, requests, time, asyncio, subprocess
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
-API_ID = int(str(os.getenv('TG_API_ID')).strip().replace('*', ''))
-API_HASH = str(os.getenv('TG_API_HASH')).strip().replace('*', '')
-SESSION_STR = str(os.getenv('TG_SESSION')).strip().replace('*', '')
-IG_ID = str(os.getenv('IG_BUSINESS_ID')).strip().replace('*', '')
-IG_TOKEN = str(os.getenv('IG_PAGE_TOKEN')).strip().replace('*', '')
+# Pulizia estrema per rimuovere residui di GitHub (asterischi, spazi)
+def c(v): return str(v).strip().replace('*', '')
+
+API_ID = int(c(os.getenv('TG_API_ID')))
+API_HASH = c(os.getenv('TG_API_HASH'))
+SESSION_STR = c(os.getenv('TG_SESSION'))
+IG_ID = c(os.getenv('IG_BUSINESS_ID'))
+IG_TOKEN = c(os.getenv('IG_PAGE_TOKEN'))
 CHANNELS = ['phorig']
 
 async def main():
@@ -30,37 +33,32 @@ async def main():
         print(f"Compressione 720p in corso...")
         subprocess.run(['ffmpeg', '-i', path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '30', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out])
         
-        print(f"Caricamento su Litterbox (scadenza 1h)...")
-        with open(out, 'rb') as f:
-            # Litterbox è più tollerante con i server GitHub
-            r = requests.post('https://litterbox.catbox.moe', 
-                              data={'reqtype': 'fileupload', 'time': '1h'}, 
-                              files={'file': f})
-            url = r.text.strip()
+        print(f"Caricamento su TmpFiles...")
+        video_url = None
+        try:
+            with open(out, 'rb') as f:
+                r = requests.post('https://tmpfiles.org', files={'file': f}).json()
+                # Trasformiamo l'URL in link diretto scaricabile
+                video_url = r['data']['url'].replace('https://tmpfiles.org', 'https://tmpfiles.orgdl/')
+                print(f"URL pronto: {video_url}")
+        except Exception as e:
+            print(f"Errore Hosting: {e}")
 
-        if url.startswith("https"):
-            print(f"URL pronto: {url}. Invio a Instagram...")
-            target_url = f"https://graph.facebook.com{IG_ID}/media"
-            payload = {
-                'media_type': 'REELS',
-                'video_url': url,
-                'caption': 'Catania Latin Lovers 🌋',
-                'access_token': IG_TOKEN
-            }
-            post = requests.post(target_url, data=payload).json()
+        if video_url and "https" in video_url:
+            print(f"Invio a Instagram...")
+            base_url = f"https://graph.facebook.com{IG_ID}/media"
+            payload = {'media_type': 'REELS', 'video_url': video_url, 'caption': 'Catania Latin Lovers 🌋', 'access_token': IG_TOKEN}
+            post = requests.post(base_url, data=payload).json()
             
             c_id = post.get('id')
             if c_id:
-                print(f"Elaborazione IG (ID: {c_id}). Attesa 60s...")
+                print(f"Elaborazione IG (ID: {c_id})...")
                 time.sleep(60)
-                pub_url = f"https://graph.facebook.com{IG_ID}/media_publish"
-                requests.post(pub_url, data={'creation_id': c_id, 'access_token': IG_TOKEN})
+                requests.post(f"https://graph.facebook.com{IG_ID}/media_publish", data={'creation_id': c_id, 'access_token': IG_TOKEN})
                 with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
                 print("✅ REEL PUBBLICATO")
-            else: 
+            else:
                 print(f"Errore Instagram: {post}")
-        else:
-            print(f"Errore Hosting Litterbox: {url[:200]}")
         
         for f_del in [path, out]:
             if os.path.exists(f_del): os.remove(f_del)
