@@ -10,7 +10,7 @@ API_HASH = c(os.getenv('TG_API_HASH'))
 SESSION_STR = c(os.getenv('TG_SESSION'))
 IG_ID = c(os.getenv('IG_BUSINESS_ID'))
 IG_TOKEN = c(os.getenv('IG_PAGE_TOKEN'))
-REPO = os.getenv('GITHUB_REPOSITORY') # Es: "tuonome/cll-reel-bot"
+REPO = os.getenv('GITHUB_REPOSITORY') 
 CHANNELS = ['phorig'] # Aggiungi qui gli altri canali senza @
 
 async def main():
@@ -32,19 +32,14 @@ async def main():
 
     if video_m:
         raw_path = await video_m.download_media()
-        out_name = f"reel_{video_m.id}.mp4"
+        out_name = "ready.mp4" # Nome fisso per il link pubblico
         
-        print(f"Compressione 720p in corso (Ultrafast)...")
+        print(f"Compressione 720p in corso...")
         # Forza 720p e qualità CRF 32 per stare sotto i 50-60MB
         subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '32', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out_name])
         
-        # URL pubblico temporaneo tramite GitHub Raw (il repo deve essere privato ma il link è diretto)
-        # Nota: Instagram richiede un URL accessibile. Usiamo l'URL RAW di GitHub.
+        # URL pubblico tramite GitHub Raw
         video_url = f"https://raw.githubusercontent.com{REPO}/main/{out_name}"
-        
-        # IMPORTANTE: Per caricare su GitHub e rendere l'URL valido, dobbiamo fare il PUSH del file.
-        # Questo viene gestito dal file .github/workflows/run.yml che abbiamo già impostato.
-        # Ma Instagram ha bisogno del file ORA. 
         
         print(f"Invio richiesta a Instagram con URL: {video_url}")
         target_url = f"https://graph.facebook.com{IG_ID}/media"
@@ -71,9 +66,9 @@ async def main():
             else:
                 print(f"❌ Errore pubblicazione: {publish_res}")
         else:
-            print(f"❌ Errore Instagram (URL non raggiungibile?): {post}")
+            print(f"❌ Errore Instagram: {post}")
         
-        # Pulizia file locale (il file su GitHub verrà rimosso dal workflow alla fine)
+        # Non cancelliamo out_name qui, lo farà il workflow dopo il push
         if os.path.exists(raw_path): os.remove(raw_path)
     else:
         print("Nessun nuovo video trovato.")
