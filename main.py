@@ -2,14 +2,11 @@ import os, requests, time, asyncio, subprocess
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
-# Pulizia automatica delle variabili (rimuove eventuali spazi o asterischi)
-def clean(val): return str(val).strip().replace('*', '')
-
-API_ID = int(clean(os.getenv('TG_API_ID')))
-API_HASH = clean(os.getenv('TG_API_HASH'))
-SESSION_STR = clean(os.getenv('TG_SESSION'))
-IG_ID = clean(os.getenv('IG_BUSINESS_ID'))
-IG_TOKEN = clean(os.getenv('IG_PAGE_TOKEN'))
+API_ID = int(str(os.getenv('TG_API_ID')).strip().replace('*', ''))
+API_HASH = str(os.getenv('TG_API_HASH')).strip().replace('*', '')
+SESSION_STR = str(os.getenv('TG_SESSION')).strip().replace('*', '')
+IG_ID = str(os.getenv('IG_BUSINESS_ID')).strip().replace('*', '')
+IG_TOKEN = str(os.getenv('IG_PAGE_TOKEN')).strip().replace('*', '')
 CHANNELS = ['phorig']
 
 async def main():
@@ -30,40 +27,40 @@ async def main():
     if video_m:
         path = await video_m.download_media()
         out = "ready.mp4"
-        print(f"Compressione in corso (720p)...")
-        
-        # Forza il video a 720p e qualità CRF 30 (ottimo compromesso peso/qualità)
+        print(f"Compressione 720p in corso...")
         subprocess.run(['ffmpeg', '-i', path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '30', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out])
         
-        print(f"Caricamento su Catbox...")
+        print(f"Caricamento su Litterbox (scadenza 1h)...")
         with open(out, 'rb') as f:
-            r = requests.post('https://catbox.moe', data={'reqtype': 'fileupload'}, files={'file': f})
+            # Litterbox è più tollerante con i server GitHub
+            r = requests.post('https://litterbox.catbox.moe', 
+                              data={'reqtype': 'fileupload', 'time': '1h'}, 
+                              files={'file': f})
             url = r.text.strip()
 
         if url.startswith("https"):
             print(f"URL pronto: {url}. Invio a Instagram...")
-            # Costruiamo l'URL in modo ultra-sicuro
-            base_url = "https://graph.facebook.com" + IG_ID + "/media"
+            target_url = f"https://graph.facebook.com{IG_ID}/media"
             payload = {
                 'media_type': 'REELS',
                 'video_url': url,
                 'caption': 'Catania Latin Lovers 🌋',
                 'access_token': IG_TOKEN
             }
-            post = requests.post(base_url, data=payload).json()
+            post = requests.post(target_url, data=payload).json()
             
             c_id = post.get('id')
             if c_id:
                 print(f"Elaborazione IG (ID: {c_id}). Attesa 60s...")
                 time.sleep(60)
-                pub_url = "https://graph.facebook.com" + IG_ID + "/media_publish"
+                pub_url = f"https://graph.facebook.com{IG_ID}/media_publish"
                 requests.post(pub_url, data={'creation_id': c_id, 'access_token': IG_TOKEN})
                 with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
                 print("✅ REEL PUBBLICATO")
             else: 
                 print(f"Errore Instagram: {post}")
         else:
-            print(f"Errore Hosting (File ancora troppo grande?): {url[:100]}")
+            print(f"Errore Hosting Litterbox: {url[:200]}")
         
         for f_del in [path, out]:
             if os.path.exists(f_del): os.remove(f_del)
