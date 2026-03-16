@@ -27,28 +27,40 @@ async def main():
     if video_m:
         path = await video_m.download_media()
         out = "ready.mp4"
-        print(f"Compressione in corso: {path}...")
+        print(f"Compressione in corso (Ultrafast)...")
         
-        # Comprime il video per renderlo compatibile e leggero
-        subprocess.run(['ffmpeg', '-i', path, '-vcodec', 'libx264', '-crf', '28', '-preset', 'faster', '-acodec', 'aac', '-y', out])
+        # Compressione più forte (CRF 32) per garantire che stia sotto i 100MB
+        subprocess.run(['ffmpeg', '-i', path, '-vcodec', 'libx264', '-crf', '32', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out])
         
+        print(f"Caricamento su Catbox...")
         with open(out, 'rb') as f:
             r = requests.post('https://catbox.moe', data={'reqtype': 'fileupload'}, files={'file': f})
             url = r.text.strip()
 
         if "https" in url:
             print(f"URL pronto: {url}. Invio a Instagram...")
-            post = requests.post(f"https://graph.facebook.com{IG_ID}/media", data={
-                'media_type': 'REELS', 'video_url': url, 'access_token': IG_TOKEN, 'caption': 'Catania Latin Lovers 🌋'
-            }).json()
+            # URL PULITO senza caratteri extra
+            base_url = f"https://graph.facebook.com{IG_ID}/media"
+            payload = {
+                'media_type': 'REELS',
+                'video_url': url,
+                'caption': 'Catania Latin Lovers 🌋',
+                'access_token': IG_TOKEN
+            }
+            post = requests.post(base_url, data=payload).json()
             
             c_id = post.get('id')
             if c_id:
-                time.sleep(60)
-                requests.post(f"https://graph.facebook.com{IG_ID}/media_publish", data={'creation_id': c_id, 'access_token': IG_TOKEN})
+                print(f"Elaborazione IG (ID: {c_id})...")
+                time.sleep(45)
+                publish_url = f"https://graph.facebook.com{IG_ID}/media_publish"
+                requests.post(publish_url, data={'creation_id': c_id, 'access_token': IG_TOKEN})
                 with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
-                print("✅ PUBBLICATO")
-            else: print(f"Errore IG: {post}")
+                print("✅ REEL PUBBLICATO")
+            else: 
+                print(f"Errore Instagram: {post}")
+        else:
+            print(f"Errore Hosting (File troppo grande?): {url[:200]}")
         
         for f_del in [path, out]:
             if os.path.exists(f_del): os.remove(f_del)
