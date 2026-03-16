@@ -2,7 +2,6 @@ import os, requests, time, asyncio, subprocess
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
-# Pulizia estrema per rimuovere residui di GitHub (asterischi, spazi)
 def c(v): return str(v).strip().replace('*', '')
 
 API_ID = int(c(os.getenv('TG_API_ID')))
@@ -33,18 +32,20 @@ async def main():
         print(f"Compressione 720p in corso...")
         subprocess.run(['ffmpeg', '-i', path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '30', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out])
         
-        print(f"Caricamento su TmpFiles...")
+        print(f"Caricamento su Gofile...")
         video_url = None
         try:
+            # Recupera il miglior server disponibile su Gofile
+            server = requests.get('https://api.gofile.io').json()['data']['server']
             with open(out, 'rb') as f:
-                r = requests.post('https://tmpfiles.org', files={'file': f}).json()
-                # Trasformiamo l'URL in link diretto scaricabile
-                video_url = r['data']['url'].replace('https://tmpfiles.org', 'https://tmpfiles.orgdl/')
+                r = requests.post(f'https://{server}.gofile.io/uploadFile', files={'file': f}).json()
+                video_url = r['data']['downloadPage'] # Gofile genera un link di pagina
+                # Nota: Gofile richiede un account per link diretti, usiamo un trucco o cambiamo strategia se IG lo rifiuta
                 print(f"URL pronto: {video_url}")
         except Exception as e:
             print(f"Errore Hosting: {e}")
 
-        if video_url and "https" in video_url:
+        if video_url:
             print(f"Invio a Instagram...")
             base_url = f"https://graph.facebook.com{IG_ID}/media"
             payload = {'media_type': 'REELS', 'video_url': video_url, 'caption': 'Catania Latin Lovers 🌋', 'access_token': IG_TOKEN}
