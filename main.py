@@ -3,49 +3,59 @@ import requests
 import time
 from telethon.sync import TelegramClient
 
-# Caricamento credenziali dai Secrets di GitHub
+# Credenziali
 api_id = int(os.getenv('TG_API_ID'))
 api_hash = os.getenv('TG_API_HASH')
 ig_id = os.getenv('IG_BUSINESS_ID')
 ig_token = os.getenv('IG_PAGE_TOKEN')
-source_channel = 'phorig' # Il canale del videomaker
+channels = ['phorig', 'ALTRO_CANALE'] # Aggiungi qui gli altri username
 
 client = TelegramClient('session', api_id, api_hash)
 
 async def main():
-    async for message in client.iter_messages(source_channel, limit=1):
-        if message.video:
-            print("Video trovato! Scaricamento...")
-            path = await message.download_media()
+    # Carica ID già pubblicati per non duplicare
+    if not os.path.exists('pubblicati.txt'): open('pubblicati.txt', 'w').close()
+    with open('pubblicati.txt', 'r') as f: gia_postati = f.read().splitlines()
+
+    video_da_postare = None
+    
+    for channel in channels:
+        async for message in client.iter_messages(channel, limit=20):
+            # Filtro: deve essere un video e non deve essere già stato postato
+            if message.video and str(message.id) not in gia_postati:
+                video_da_postare = message
+                break # Ne prendiamo solo uno per volta (pianificazione lenta)
+        if video_da_postare: break
+
+    if video_da_postare:
+        print(f"Nuovo video trovato (ID: {video_da_postare.id}). Scaricamento...")
+        path = await video_da_postare.download_media()
+        
+        # Hosting temporaneo
+        with open(path, 'rb') as f:
+            video_url = requests.post('https://file.io', files={'file': f}).json()['link']
+        
+        # Instagram Post
+        post_url = f"https://graph.facebook.com{ig_id}/media"
+        payload = {
+            'media_type': 'REELS',
+            'video_url': video_url,
+            'caption': "Catania Latin Lovers 🌋 #bachata #salsa",
+            'access_token': ig_token
+        }
+        r = requests.post(post_url, data=payload)
+        creation_id = r.json().get('id')
+        
+        if creation_id:
+            time.sleep(40) # Attesa elaborazione
+            requests.post(f"https://graph.facebook.com{ig_id}/media_publish", 
+                          data={'creation_id': creation_id, 'access_token': ig_token})
             
-            # Caricamento su un hosting temporaneo (file.io) per dare un URL a Instagram
-            with open(path, 'rb') as f:
-                response = requests.post('https://file.io', files={'file': f})
-                video_url = response.json()['link']
-            
-            # 1. Creazione del Reel Container su Instagram
-            post_url = f"https://graph.facebook.com{ig_id}/media"
-            payload = {
-                'media_type': 'REELS',
-                'video_url': video_url,
-                'caption': message.text or "Nuovo Reel! #bachata #salsa",
-                'access_token': ig_token
-            }
-            r = requests.post(post_url, data=payload)
-            creation_id = r.json().get('id')
-            
-            if creation_id:
-                print("Elaborazione video in corso su Instagram...")
-                time.sleep(30) # Attendiamo che Instagram elabori il video
-                
-                # 2. Pubblicazione finale del Reel
-                publish_url = f"https://graph.facebook.com{ig_id}/media_publish"
-                requests.post(publish_url, data={'creation_id': creation_id, 'access_token': ig_token})
-                print("Reel pubblicato con successo!")
-            else:
-                print(f"Errore Instagram: {r.text}")
-            
-            os.remove(path) # Pulizia file locale
+            # Salva l'ID per non ripostarlo
+            with open('pubblicati.txt', 'a') as f: f.write(f"{video_da_postare.id}\n")
+            print("Reel inviato!")
+        
+        os.remove(path)
 
 with client:
     client.loop.run_until_complete(main())
