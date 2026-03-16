@@ -27,43 +27,51 @@ async def main():
     if video_m:
         path = await video_m.download_media()
         out = "ready.mp4"
-        print(f"Compressione in corso (Ultrafast)...")
+        print(f"Compressione aggressiva in corso...")
         
-        # Compressione più forte (CRF 32) per garantire che stia sotto i 100MB
-        subprocess.run(['ffmpeg', '-i', path, '-vcodec', 'libx264', '-crf', '32', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out])
+        # Forza 720p e qualità CRF 35 (file molto piccolo, perfetto per Instagram)
+        cmd = [
+            'ffmpeg', '-i', path, 
+            '-vf', 'scale=-2:720', 
+            '-vcodec', 'libx264', '-crf', '35', '-preset', 'ultrafast', 
+            '-acodec', 'aac', '-ar', '44100', '-y', out
+        ]
+        subprocess.run(cmd)
         
         print(f"Caricamento su Catbox...")
         with open(out, 'rb') as f:
             r = requests.post('https://catbox.moe', data={'reqtype': 'fileupload'}, files={'file': f})
             url = r.text.strip()
 
-        if "https" in url:
+        if url.startswith("https"):
             print(f"URL pronto: {url}. Invio a Instagram...")
-            # URL PULITO senza caratteri extra
-            base_url = f"https://graph.facebook.com{IG_ID}/media"
+            # URL pulito senza variabili esterne che possono contenere asterischi
+            target_url = "https://graph.facebook.com" + str(IG_ID) + "/media"
             payload = {
                 'media_type': 'REELS',
                 'video_url': url,
                 'caption': 'Catania Latin Lovers 🌋',
                 'access_token': IG_TOKEN
             }
-            post = requests.post(base_url, data=payload).json()
+            post = requests.post(target_url, data=payload).json()
             
             c_id = post.get('id')
             if c_id:
-                print(f"Elaborazione IG (ID: {c_id})...")
-                time.sleep(45)
-                publish_url = f"https://graph.facebook.com{IG_ID}/media_publish"
-                requests.post(publish_url, data={'creation_id': c_id, 'access_token': IG_TOKEN})
+                print(f"Elaborazione IG (ID: {c_id}). Attesa 60s...")
+                time.sleep(60)
+                pub_url = "https://graph.facebook.com" + str(IG_ID) + "/media_publish"
+                requests.post(pub_url, data={'creation_id': c_id, 'access_token': IG_TOKEN})
                 with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
                 print("✅ REEL PUBBLICATO")
             else: 
                 print(f"Errore Instagram: {post}")
         else:
-            print(f"Errore Hosting (File troppo grande?): {url[:200]}")
+            print("Errore Hosting: Il file è ancora troppo grande (>200MB) dopo la compressione.")
         
         for f_del in [path, out]:
             if os.path.exists(f_del): os.remove(f_del)
+    else:
+        print("Nessun nuovo video trovato.")
     await client.disconnect()
 
 if __name__ == "__main__":
