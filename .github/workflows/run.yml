@@ -1,23 +1,40 @@
 name: CLL Auto Post
 on:
   schedule:
-    - cron: '0 * * * *' # Gira ogni ora spaccata
-  workflow_dispatch: # Questo tasto ti permette di farlo partire a mano per prova
+    - cron: '0 * * * *' # Gira ogni ora
+  workflow_dispatch: # Permette l'avvio manuale per i test
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    # Permessi necessari per permettere al bot di salvare il file pubblicati.txt
+    permissions:
+      contents: write
+      
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
       - name: Install deps
         run: pip install telethon requests
+
       - name: Run script
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION: ${{ secrets.TG_SESSION }}
           IG_BUSINESS_ID: ${{ secrets.IG_BUSINESS_ID }}
           IG_PAGE_TOKEN: ${{ secrets.IG_PAGE_TOKEN }}
         run: python main.py
+
+      - name: Save progress (Commit published IDs)
+        run: |
+          git config --global user.name 'CLL-Bot'
+          git config --global user.email 'bot@catanialatinlovers.it'
+          git add pubblicati.txt || true
+          git commit -m "Update published videos list" || true
+          git push || true
