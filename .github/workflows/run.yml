@@ -1,0 +1,23 @@
+name: CLL Auto Post
+on:
+  schedule:
+    - cron: '0 * * * *' # Gira ogni ora spaccata
+  workflow_dispatch: # Questo tasto ti permette di farlo partire a mano per prova
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install deps
+        run: pip install telethon requests
+      - name: Run script
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          IG_BUSINESS_ID: ${{ secrets.IG_BUSINESS_ID }}
+          IG_PAGE_TOKEN: ${{ secrets.IG_PAGE_TOKEN }}
+        run: python main.py
