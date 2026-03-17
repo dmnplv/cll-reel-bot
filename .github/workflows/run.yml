@@ -2,14 +2,14 @@ name: CLL Auto Post
 
 on:
   schedule:
-    - cron: '0 * * * *' # Gira ogni ora spaccata
-  workflow_dispatch: # Permette l'avvio manuale dal tasto "Run workflow"
+    - cron: '0 * * * *' # Gira ogni ora
+  workflow_dispatch: # Tasto manuale per il test
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Obbligatorio per pushare pubblicati.txt e i video nel repo privato
+      contents: write # Fondamentale per salvare il database e il video nel repo
       
     steps:
       - name: Checkout repository
@@ -33,14 +33,12 @@ jobs:
           TG_SESSION: ${{ secrets.TG_SESSION }}
           IG_BUSINESS_ID: ${{ secrets.IG_BUSINESS_ID }}
           IG_PAGE_TOKEN: ${{ secrets.IG_PAGE_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Passa il token automatico allo script Python
         run: python main.py
 
-      - name: Save progress
+      - name: Commit and Push changes
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
-          git add pubblicati.txt || true
-          git add *.mp4 || true
-          git commit -m "Aggiornamento database post e video" || true
-          git push || true
+          git add pubblicati.txt ready.mp4 || true
+          git commit -m "Update database and video for Instagram" || true
+          git push
