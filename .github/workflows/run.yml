@@ -1,19 +1,18 @@
 name: CLL Auto Post
-
 on:
   schedule:
-    - cron: '0 * * * *' # Gira ogni ora
-  workflow_dispatch: # Tasto manuale per il test
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Fondamentale per salvare il database e il video nel repo
-      
+      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessario per evitare conflitti di push
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -22,8 +21,7 @@ jobs:
 
       - name: Install FFmpeg and Deps
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install telethon requests
 
       - name: Run script
@@ -35,10 +33,11 @@ jobs:
           IG_PAGE_TOKEN: ${{ secrets.IG_PAGE_TOKEN }}
         run: python main.py
 
-      - name: Commit and Push changes
+      - name: Save and Push
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
-          git add pubblicati.txt ready.mp4 || true
-          git commit -m "Update database and video for Instagram" || true
-          git push
+          git pull --rebase origin main # Risolve il conflitto del log precedente
+          git add ready.mp4 pubblicati.txt || true
+          git commit -m "Update HQ video and database" || true
+          git push origin main
