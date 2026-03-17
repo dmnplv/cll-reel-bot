@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necessario per evitare conflitti di push
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -37,7 +37,10 @@ jobs:
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
-          git pull --rebase origin main # Risolve il conflitto del log precedente
-          git add ready.mp4 pubblicati.txt || true
+          git add pubblicati.txt ready.mp4 || true
+          git stash # Mette al sicuro i cambiamenti locali
+          git pull --rebase origin main # Scarica gli aggiornamenti remoti
+          git stash pop || true # Riaplica i cambiamenti sopra i nuovi dati
+          git add pubblicati.txt ready.mp4 || true
           git commit -m "Update HQ video and database" || true
           git push origin main
