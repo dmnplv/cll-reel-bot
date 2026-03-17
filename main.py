@@ -2,6 +2,7 @@ import os, requests, time, asyncio, subprocess
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
+# Pulizia dei Secret
 def c(v): return str(v or "").strip().replace('*', '').replace(' ', '')
 
 API_ID = int(c(os.getenv('TG_API_ID')) or 0)
@@ -15,6 +16,7 @@ async def main():
     client = TelegramClient(StringSession(SESSION_STR), API_ID, API_HASH)
     await client.connect()
 
+    # Gestione database post già pubblicati
     if not os.path.exists('pubblicati.txt'): open('pubblicati.txt', 'w').close()
     with open('pubblicati.txt', 'r') as f: gia_postati = f.read().splitlines()
 
@@ -38,19 +40,24 @@ async def main():
         else:
             print(f"Errore Instagram: {r}")
 
-    # 2. PREPARAZIONE PROSSIMO VIDEO (ALTA QUALITÀ)
+    # 2. PREPARAZIONE PROSSIMO VIDEO
     async for m in client.iter_messages('phorig', limit=10):
         if m.video and str(m.id) not in gia_postati:
-            print(f"🎬 Preparazione video ID: {m.id} (1080p HD)...")
+            print(f"🎬 Preparazione video ID: {m.id} (1080p HQ)...")
             raw_path = await m.download_media()
-            # PARAMETRI HQ: 1080p, CRF 22 (Qualità visiva ottima), Preset Faster
+            # PARAMETRI HQ: 1080p, CRF 22, Preset Faster
             subprocess.run([
                 'ffmpeg', '-i', raw_path, 
                 '-vf', 'scale=-2:1080', 
                 '-vcodec', 'libx264', '-crf', '22', '-preset', 'faster', 
                 '-acodec', 'aac', '-b:a', '192k', '-y', 'ready.mp4'
             ])
-            with open('pubblicati.txt', 'a') as f: f.write(f"{m.id}\n")
+            
+            # Aggiungi ID e mantieni solo gli ultimi 100 per non appesantire il repo
+            gia_postati.append(str(m.id))
+            with open('pubblicati.txt', 'w') as f:
+                f.write("\n".join(gia_postati[-100:]))
+            
             if os.path.exists(raw_path): os.remove(raw_path)
             print("✅ Video HQ pronto nel repo.")
             break
