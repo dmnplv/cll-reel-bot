@@ -22,10 +22,10 @@ async def main():
 
     # 1. PUBBLICAZIONE VIDEO PRECEDENTE
     if os.path.exists('ready.mp4'):
-        video_url = f"https://raw.githubusercontent.com{REPO}/main/ready.mp4"
+        video_url = f"https://raw.githubusercontent.com/{REPO}/main/ready.mp4"
         print(f"🚀 Pubblicazione Reel in Alta Qualità: {video_url}")
         
-        r = requests.post(f"https://graph.facebook.com{IG_ID}/media", data={
+        r = requests.post(f"https://graph.facebook.com/{IG_ID}/media", data={
             'media_type': 'REELS', 'video_url': video_url, 
             'caption': 'Catania Latin Lovers 🌋 #bachata #salsa', 'access_token': IG_TOKEN
         }).json()
@@ -33,7 +33,7 @@ async def main():
         if 'id' in r:
             print(f"✅ Container OK. Elaborazione video pesante (90s)...")
             time.sleep(90)
-            requests.post(f"https://graph.facebook.com{IG_ID}/media_publish", 
+            requests.post(f"https://graph.facebook.com/{IG_ID}/media_publish", 
                           data={'creation_id': r['id'], 'access_token': IG_TOKEN})
             os.remove('ready.mp4')
             print("🔥 REEL PUBBLICATO!")
