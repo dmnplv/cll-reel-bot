@@ -2,7 +2,6 @@ import os, requests, time, asyncio, subprocess
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
-# Pulizia dei Secret
 def c(v): return str(v or "").strip().replace('*', '').replace(' ', '')
 
 API_ID = int(c(os.getenv('TG_API_ID')) or 0)
@@ -19,60 +18,38 @@ async def main():
     if not os.path.exists('pubblicati.txt'): open('pubblicati.txt', 'w').close()
     with open('pubblicati.txt', 'r') as f: gia_postati = f.read().splitlines()
 
-    # STEP 1: PUBBLICAZIONE (Se esiste un video già caricato nel repo)
+    # 1. TENTA DI PUBBLICARE IL VIDEO DELL'ORA PRECEDENTE (se esiste)
     if os.path.exists('ready.mp4'):
-        # URL Raw di GitHub (funziona solo se il repo è PUBLIC)
-        video_url = f"https://raw.githubusercontent.com{REPO}/main/ready.mp4"
-        print(f"🚀 Tentativo di pubblicazione su Instagram: {video_url}")
+        video_url = f"https://raw.githubusercontent.com/{REPO}/main/ready.mp4"
+        print(f"🚀 Tentativo pubblicazione video caricato: {video_url}")
         
         target_url = f"https://graph.facebook.com/{IG_ID}/media"
-        payload = {
-            'media_type': 'REELS',
-            'video_url': video_url,
-            'caption': 'Catania Latin Lovers 🌋 #bachata #salsa',
-            'access_token': IG_TOKEN
-        }
+        r = requests.post(target_url, data={
+            'media_type': 'REELS', 'video_url': video_url, 
+            'caption': 'Catania Latin Lovers 🌋 #bachata #salsa', 'access_token': IG_TOKEN
+        }).json()
         
-        r = requests.post(target_url, data=payload).json()
-        c_id = r.get('id')
-        
-        if c_id:
-            print(f"✅ Container creato: {c_id}. Attesa 90s per elaborazione...")
+        if 'id' in r:
+            print(f"✅ Container OK. Attesa 90s...")
             time.sleep(90)
-            pub_url = f"https://graph.facebook.com/{IG_ID}/media_publish"
-            requests.post(pub_url, data={'creation_id': c_id, 'access_token': IG_TOKEN})
-            # Rimuoviamo il video locale; verrà rimosso dal repo al prossimo push
+            requests.post(f"https://graph.facebook.com/{IG_ID}/media_publish", 
+                          data={'creation_id': r['id'], 'access_token': IG_TOKEN})
             os.remove('ready.mp4')
-            print("🔥 REEL PUBBLICATO CON SUCCESSO!")
+            print("🔥 REEL PUBBLICATO!")
         else:
-            print(f"Instagram non può ancora scaricare il file (attesa push) o errore: {r}")
+            print(f"Instagram non vede ancora il file (normale se è il primo run): {r}")
 
-    # STEP 2: PREPARAZIONE (Scarica il prossimo video per l'ora successiva)
-    video_m = None
+    # 2. SCARICA E PREPARA IL PROSSIMO VIDEO
     async for m in client.iter_messages('phorig', limit=10):
         if m.video and str(m.id) not in gia_postati:
-            video_m = m
+            print(f"🎬 Preparazione nuovo video (ID: {m.id})...")
+            raw_path = await m.download_media()
+            # Compressione
+            subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '32', '-preset', 'ultrafast', '-acodec', 'aac', '-y', 'ready.mp4'])
+            with open('pubblicati.txt', 'a') as f: f.write(f"{m.id}\n")
+            if os.path.exists(raw_path): os.remove(raw_path)
+            print("✅ Prossimo video pronto nel repo.")
             break
-
-    if video_m and not os.path.exists('ready.mp4'):
-        print(f"Preparazione video (ID Telegram: {video_m.id})...")
-        raw_path = await video_m.download_media()
-        
-        # Compressione per garantire compatibilità e leggerezza (sotto i 100MB)
-        subprocess.run([
-            'ffmpeg', '-i', raw_path, 
-            '-vf', 'scale=-2:720', 
-            '-vcodec', 'libx264', '-crf', '32', '-preset', 'ultrafast', 
-            '-acodec', 'aac', '-y', 'ready.mp4'
-        ])
-        
-        # Segna come "in coda" per non scaricarlo di nuovo
-        with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
-        
-        if os.path.exists(raw_path): os.remove(raw_path)
-        print("✅ Video pronto nel repository per il prossimo invio.")
-    else:
-        print("Nessun nuovo video da preparare o coda piena.")
 
     await client.disconnect()
 
