@@ -19,6 +19,11 @@ async def main():
     if not IG_ID or not IG_TOKEN:
         print("❌ ERRORE: Secrets Instagram mancanti.")
         return
+    
+    # Verifica che l'ID sia solo numerico
+    if not IG_ID.isdigit():
+        print(f"❌ Errore critico: l'ID Instagram non è valido o contiene caratteri extra.")
+        return
 
     client = TelegramClient(StringSession(SESSION_STR), API_ID, API_HASH)
     await client.connect()
