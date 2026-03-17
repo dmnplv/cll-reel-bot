@@ -1,7 +1,8 @@
 name: CLL Auto Post
 on:
   schedule:
-    - cron: '0 12,19 * * *' # 12:00 e 19:00 UTC (che sono le 13 e le 20 in Italia)
+    # 10:00, 14:00 e 21:00 (Ora Italiana)
+    - cron: '0 9,13,20 * * *' 
   workflow_dispatch:
 
 jobs:
@@ -10,7 +11,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -24,7 +26,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install telethon requests
 
-      - name: Run script
+      - name: Run Automator Script
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
@@ -33,14 +35,14 @@ jobs:
           IG_PAGE_TOKEN: ${{ secrets.IG_PAGE_TOKEN }}
         run: python main.py
 
-      - name: Save and Push
+      - name: Save and Push Progress
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
-          git add pubblicati.txt ready.mp4 || true
-          git stash # Mette al sicuro i cambiamenti locali
-          git pull --rebase origin main # Scarica gli aggiornamenti remoti
-          git stash pop || true # Riaplica i cambiamenti sopra i nuovi dati
-          git add pubblicati.txt ready.mp4 || true
-          git commit -m "Update HQ video and database" || true
+          git add pubblicati.txt ready.mp4 caption.txt || true
+          git stash
+          git pull --rebase origin main
+          git stash pop || true
+          git add pubblicati.txt ready.mp4 caption.txt || true
+          git commit -m "Update HQ video, caption and database 🌋" || true
           git push origin main
