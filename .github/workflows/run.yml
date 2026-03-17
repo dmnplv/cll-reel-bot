@@ -1,7 +1,7 @@
 name: CLL Auto Post
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 12,19 * * *' # 12:00 e 19:00 UTC (che sono le 13 e le 20 in Italia)
   workflow_dispatch:
 
 jobs:
