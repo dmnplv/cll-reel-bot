@@ -10,14 +10,15 @@ API_HASH = clean(os.getenv('TG_API_HASH'))
 SESSION_STR = clean(os.getenv('TG_SESSION'))
 IG_ID = clean(os.getenv('IG_BUSINESS_ID'))
 IG_TOKEN = clean(os.getenv('IG_PAGE_TOKEN'))
-REPO = os.getenv('GITHUB_REPOSITORY') 
+REPO = os.getenv('GITHUB_REPOSITORY')
+# Token necessario per scaricare da repo privato (passato via secrets o default GITHUB_TOKEN)
+GH_TOKEN = os.getenv('GITHUB_TOKEN') 
 
 async def main():
-    print(f"DEBUG: ID trovato -> {IG_ID} (Lunghezza: {len(IG_ID)})")
-    print(f"DEBUG: Token trovato (Lunghezza: {len(IG_TOKEN)})")
+    print(f"DEBUG: ID trovato -> {IG_ID}")
     
     if len(IG_ID) < 5 or len(IG_TOKEN) < 10:
-        print("❌ ERRORE: I Secrets di Instagram non sono stati caricati correttamente da GitHub.")
+        print("❌ ERRORE: Secrets Instagram mancanti.")
         return
 
     client = TelegramClient(StringSession(SESSION_STR), API_ID, API_HASH)
@@ -36,29 +37,49 @@ async def main():
         raw_path = await video_m.download_media()
         out_name = "ready.mp4"
         print(f"Compressione 720p...")
-        subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '32', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out_name])
+        subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '30', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out_name])
         
-        video_url = f"https://raw.githubusercontent.com{REPO}/main/{out_name}"
+        # URL per REPO PRIVATO: inseriamo il token per permettere a IG di accedere
+        # Formato: https://<token>@://raw.githubusercontent.com<user>/<repo>/main/<file>
+        video_url = f"https://{GH_TOKEN}@://raw.githubusercontent.com{REPO}/main/{out_name}"
+        
+        # Endpoint Instagram corretto con slash e versione
         target_url = f"https://graph.facebook.com{IG_ID}/media"
         
         try:
+            print(f"Inviando URL a Instagram...")
             r = requests.post(target_url, data={
-                'media_type': 'REELS', 'video_url': video_url, 
-                'caption': 'Catania Latin Lovers 🌋', 'access_token': IG_TOKEN
+                'media_type': 'REELS', 
+                'video_url': video_url, 
+                'caption': 'Catania Latin Lovers 🌋', 
+                'access_token': IG_TOKEN
             }).json()
             
             if 'id' in r:
-                print(f"✅ OK! Attesa 90s...")
-                time.sleep(90)
-                requests.post(f"https://graph.facebook.com{IG_ID}/media_publish", data={'creation_id': r['id'], 'access_token': IG_TOKEN})
-                with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
-                print("🔥 PUBBLICATO")
+                creation_id = r['id']
+                print(f"✅ Container creato: {creation_id}. Attesa elaborazione (120s)...")
+                
+                # Tempo necessario a IG per scaricare il file dal tuo repo
+                time.sleep(120)
+                
+                publish_url = f"https://graph.facebook.com{IG_ID}/media_publish"
+                p = requests.post(publish_url, data={
+                    'creation_id': creation_id, 
+                    'access_token': IG_TOKEN
+                }).json()
+                
+                if 'id' in p:
+                    with open('pubblicati.txt', 'a') as f: f.write(f"{video_m.id}\n")
+                    print("🔥 PUBBLICATO")
+                else:
+                    print(f"❌ Errore pubblicazione: {p}")
             else:
-                print(f"❌ Errore Instagram: {r}")
+                print(f"❌ Errore Instagram (Container): {r}")
         except Exception as e:
             print(f"❌ Errore critico: {e}")
         
         if os.path.exists(raw_path): os.remove(raw_path)
+    
     await client.disconnect()
 
 if __name__ == "__main__":
