@@ -11,13 +11,12 @@ SESSION_STR = clean(os.getenv('TG_SESSION'))
 IG_ID = clean(os.getenv('IG_BUSINESS_ID'))
 IG_TOKEN = clean(os.getenv('IG_PAGE_TOKEN'))
 REPO = os.getenv('GITHUB_REPOSITORY')
-# Token necessario per scaricare da repo privato (passato via secrets o default GITHUB_TOKEN)
 GH_TOKEN = os.getenv('GITHUB_TOKEN') 
 
 async def main():
     print(f"DEBUG: ID trovato -> {IG_ID}")
     
-    if len(IG_ID) < 5 or len(IG_TOKEN) < 10:
+    if not IG_ID or not IG_TOKEN:
         print("❌ ERRORE: Secrets Instagram mancanti.")
         return
 
@@ -39,12 +38,11 @@ async def main():
         print(f"Compressione 720p...")
         subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:720', '-vcodec', 'libx264', '-crf', '30', '-preset', 'ultrafast', '-acodec', 'aac', '-y', out_name])
         
-        # URL per REPO PRIVATO: inseriamo il token per permettere a IG di accedere
-        # Formato: https://<token>@://raw.githubusercontent.com<user>/<repo>/main/<file>
+        # URL con token per repo privato
         video_url = f"https://{GH_TOKEN}@://raw.githubusercontent.com{REPO}/main/{out_name}"
         
-        # Endpoint Instagram corretto con slash e versione
-        target_url = f"https://graph.facebook.com{IG_ID}/media"
+        # FIX QUI: Aggiunto lo slash "/" prima di {IG_ID}
+        target_url = f"https://graph.facebook.com/{IG_ID}/media"
         
         try:
             print(f"Inviando URL a Instagram...")
@@ -57,12 +55,11 @@ async def main():
             
             if 'id' in r:
                 creation_id = r['id']
-                print(f"✅ Container creato: {creation_id}. Attesa elaborazione (120s)...")
-                
-                # Tempo necessario a IG per scaricare il file dal tuo repo
+                print(f"✅ Container creato: {creation_id}. Attesa 120s...")
                 time.sleep(120)
                 
-                publish_url = f"https://graph.facebook.com{IG_ID}/media_publish"
+                # FIX ANCHE QUI: Aggiunto lo slash "/" prima di {IG_ID}
+                publish_url = f"https://graph.facebook.com/{IG_ID}/media_publish"
                 p = requests.post(publish_url, data={
                     'creation_id': creation_id, 
                     'access_token': IG_TOKEN
