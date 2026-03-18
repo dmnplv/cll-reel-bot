@@ -1,6 +1,6 @@
 # 🌋 Catania Latin Lovers | Reel Automator
 [![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org)
-[![Automation](https://img.shields.io/github/workflow/status/dmnplv/cll-reel-bot/CI)](https://github.com/dmnplv/cll-reel-bot/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/dmnplv/cll-reel-bot/run.yml?branch=main&label=build&logo=githubactions&color=brightgreen)](https://github.com/dmnplv/cll-reel-bot/actions)
 [![License](https://img.shields.io/github/license/dmnplv/cll-reel-bot)](LICENSE)
 
 > **L'automazione intelligente che connette la community latina di Catania.**  
@@ -10,7 +10,7 @@
 
 ## 🛠 Tech Stack
 [![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org)
-[![GitHub Actions](https://img.shields.io/github/workflow/status/dmnplv/cll-reel-bot/CI)](https://github.com/dmnplv/cll-reel-bot/actions)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-passing-brightgreen?logo=githubactions)](https://github.com/dmnplv/cll-reel-bot/actions)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)](https://telegram.org)
 [![Instagram](https://img.shields.io/badge/Instagram-API-purple?logo=instagram)](https://developers.facebook.com/docs/instagram)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-4.4-orange?logo=ffmpeg)](https://ffmpeg.org)
