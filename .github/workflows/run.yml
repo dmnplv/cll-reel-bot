@@ -1,18 +1,20 @@
 name: CLL Auto Post
 on:
   schedule:
-    - cron: '0 9,13,20 * * *' # 10:00, 14:00, 21:00 IT
-  workflow_dispatch:
+    - cron: '0 9,13,20 * * *' # Scatta alle 10:00, 14:00, 21:00 italiane (UTC+1)
+  workflow_dispatch: # Permette l'avvio manuale per i test
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Permesso necessario per salvare i file nel repo
+      
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Scarica tutta la cronologia per evitare errori di push
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -37,14 +39,26 @@ jobs:
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
+          
+          # 1. Aggiunta iniziale dei file generati o modificati dallo script
           git add pubblicati.txt ready.mp4 caption.txt || true
+          
+          # 2. Sincronizzazione sicura per evitare conflitti
           git stash
           git pull --rebase origin main
           git stash pop || true
-          git add pubblicati.txt ready.mp4 caption.txt || true
-          git commit -m "Update HQ video, caption and database 🌋" || true
-          # Se il video è stato postato, lo script lo ha cancellato localmente.
-          # Questo comando lo cancella anche dal repository remoto dopo il push.
-          git rm ready.mp4 caption.txt --ignore-unmatch || true
-          git commit -m "Cleanup posted media" || true
+          
+          # 3. Logica di pulizia: se il video è stato postato (quindi cancellato dallo script), 
+          # rimuovilo dal repo. Se è nuovo (pronto per il prossimo giro), aggiungilo.
+          if [ ! -f ready.mp4 ]; then
+            git rm ready.mp4 caption.txt --ignore-unmatch || true
+          else
+            git add ready.mp4 caption.txt || true
+          fi
+          
+          # 4. Conferma finale del database ID
+          git add pubblicati.txt || true
+          
+          # 5. Commit e Push finale
+          git commit -m "Sync video, Catania Geotag and database 🌋" || echo "Nothing to commit"
           git push origin main
