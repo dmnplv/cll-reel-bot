@@ -1,41 +1,35 @@
-# 🌋 Catania Latin Lovers - Auto Reel Bot
+# 🌋 Catania Latin Lovers - Reel Automator
 
-Questo bot automatizza il prelievo di video da un canale Telegram specifico (`phorig`), li processa (compressione 720p) e li pubblica come **Instagram Reels** sul profilo ufficiale di Catania Latin Lovers.
+Questo progetto è un sistema di automazione intelligente che preleva i migliori video di Salsa e Bachata dai canali Telegram dei principali videomaker siciliani e li pubblica come **Reels in Alta Qualità (1080p)** sul profilo Instagram di **Catania Latin Lovers**.
 
 ## 🚀 Come Funziona
-1. **Trigger**: GitHub Actions avvia lo script ogni ora (`cron`).
-2. **Download**: Lo script controlla gli ultimi 10 messaggi su Telegram alla ricerca di nuovi video.
-3. **Processing**: FFmpeg comprime il video per ottimizzarlo agli standard di Instagram.
-4. **Hosting**: Il video viene caricato temporaneamente su questo repository (pubblico).
-5. **Publish**: Tramite le API Graph di Meta, il video viene inviato e pubblicato come Reel.
+Il sistema opera in modalità **"Staffetta"** tramite GitHub Actions per garantire la massima stabilità:
+1.  **Giro A (Preparazione):** Il bot scansiona le sorgenti Telegram, sceglie il video più recente, lo comprime in HD (1080p) e lo carica nel repository.
+2.  **Giro B (Pubblicazione):** Al turno successivo, il video caricato viene inviato alle API di Instagram con i relativi crediti (tag) del videomaker e Geotag di Catania.
 
-## 🛠 Setup & Requisiti
+## 🛠 Caratteristiche Tecniche
+- **HQ Video Processing:** Utilizza `FFmpeg` con parametri `CRF 22` per mantenere una qualità visiva eccellente sotto i 100MB.
+- **Smart Rotation:** Logica di pubblicazione a "blocchi da 3" per mantenere l'estetica della griglia Instagram ordinata per autore.
+- **Auto-Cleanup:** Il database `pubblicati.txt` si auto-pulisce mantenendo solo gli ultimi 100 ID per non appesantire il repository.
+- **Geotagging:** Ogni post viene localizzato automaticamente a Catania per massimizzare la visibilità locale.
 
-### 1. Secrets di GitHub
-Per far funzionare il bot, devono essere impostati i seguenti **Actions Secrets** in `Settings > Secrets and variables > Actions`:
+## 📡 Sorgenti Monitorate
+Il bot monitora costantemente i seguenti creator:
+- [@original.ph_](https://www.instagram.com)
+- [@photo_goldsalsa](https://www.instagram.com)
+- [@bachata_social_sicilia](https://www.instagram.com)
+- [@elegancia_latina_catania](https://www.instagram.com)
+- [@latin__chic](https://www.instagram.com)
 
+## ⏰ Programmazione Post
+L'automazione scatta **6 volte al giorno** per garantire una copertura costante negli orari di maggior traffico (Mattina, Pausa Pranzo, Prime Time).
 
-| Secret | Descrizione |
-| :--- | :--- |
-| `TG_API_ID` | API ID ottenuto da my.telegram.org |
-| `TG_API_HASH` | API Hash ottenuto da my.telegram.org |
-| `TG_SESSION` | String Session di Telethon (per evitare il login manuale) |
-| `IG_BUSINESS_ID` | ID dell'account Instagram Business (non della pagina FB) |
-| `IG_PAGE_TOKEN` | Access Token Permanente (System User o Long-Lived) |
-
-### 2. File di Database
-*   `pubblicati.txt`: Registro degli ID dei messaggi Telegram già postati per evitare duplicati.
-*   `ready.mp4`: L'ultimo video elaborato pronto per il download da parte di Instagram.
-
-## 📦 Tecnologie utilizzate
-- **Python 3.9**
-- **Telethon**: Per l'interazione con l'API di Telegram.
-- **Requests**: Per le chiamate alle API Graph di Facebook/Instagram.
-- **FFmpeg**: Per la manipolazione e compressione video.
-- **GitHub Actions**: Per l'automazione e l'hosting temporaneo dei media.
-
-## ⚠️ Note sulla Sicurezza
-Il repository è **pubblico**, ma tutti i token e le sessioni sensibili sono gestiti tramite **GitHub Secrets**. Non includere mai token in chiaro nel file `main.py`.
+## 🔒 Requisiti & Secrets
+Per funzionare, il progetto richiede i seguenti **GitHub Secrets**:
+- `TG_API_ID` / `TG_API_HASH`: Credenziali Telegram API.
+- `TG_SESSION`: String Session di Telethon (generata via script).
+- `IG_BUSINESS_ID`: ID dell'account Instagram Business.
+- `IG_PAGE_TOKEN`: Token di accesso alla pagina Facebook (con scadenza "Never").
 
 ---
-*Sviluppato per Catania Latin Lovers 🌋*
+*Creato con ❤️ per la community latina di Catania.*
