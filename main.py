@@ -12,10 +12,8 @@ INSTAGRAM_ACCOUNT_ID = os.getenv('IG_BUSINESS_ID')
 ACCESS_TOKEN = os.getenv('IG_PAGE_TOKEN')
 GITHUB_REPO = os.getenv('GITHUB_REPOSITORY')
 
-CATANIA_LOCATION_ID = "115421711794270"
-DAYS_LIMIT = 30 
+DAYS_LIMIT = 30
 
-# Sources Mapping (Telegram ID/Username : Instagram Handle)
 VIDEO_SOURCES = {
     'phorig': 'original.ph_',
     'photogoldct': 'photo_goldsalsa',
@@ -27,7 +25,6 @@ async def main():
     client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
     await client.connect()
 
-    # Load Database
     db_file = 'pubblicati.txt'
     if not os.path.exists(db_file): open(db_file, 'w').close()
     with open(db_file, 'r') as f: 
@@ -35,23 +32,21 @@ async def main():
 
     date_threshold = datetime.now(timezone.utc) - timedelta(days=DAYS_LIMIT)
 
-    # --- PHASE 1: PUBLISH PREVIOUS REEL ---
+    # --- PHASE 1: PUBLISH ---
     if os.path.exists('ready.mp4'):
         caption = "Catania Latin Lovers 🌋"
         if os.path.exists('caption.txt'):
             with open('caption.txt', 'r', encoding='utf-8') as f: caption = f.read()
 
-        # Direct GitHub URL as requested
         video_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/ready.mp4"
         print(f"🚀 [IG] Publishing Reel: {video_url}")
         
-        # Container Creation (Endpoint as requested)
         container_url = f"https://graph.facebook.com/{INSTAGRAM_ACCOUNT_ID}/media"
+        
         payload = {
             'media_type': 'REELS',
             'video_url': video_url,
             'caption': caption,
-            'location_id': CATANIA_LOCATION_ID,
             'access_token': ACCESS_TOKEN
         }
         
@@ -61,22 +56,18 @@ async def main():
         if creation_id:
             print(f"✅ [IG] Container created: {creation_id}. Waiting 90s...")
             time.sleep(90)
-            
-            # Final Publication (Endpoint as requested)
             publish_url = f"https://graph.facebook.com/{INSTAGRAM_ACCOUNT_ID}/media_publish"
             pub_res = requests.post(publish_url, data={'creation_id': creation_id, 'access_token': ACCESS_TOKEN}).json()
-            
             if 'id' in pub_res:
-                print("🔥 [IG] REEL PUBBLICATO CON SUCCESSO!")
+                print("🔥 [IG] REEL PUBLISHED!")
                 os.remove('ready.mp4')
                 if os.path.exists('caption.txt'): os.remove('caption.txt')
-            else:
-                print(f"❌ [IG] Publication failed: {pub_res}")
         else:
             print(f"❌ [IG] Container failed: {response}")
-            if "already" in str(response).lower(): os.remove('ready.mp4')
+            # Se l'errore era il Geotag o l'URL, resettiamo per non bloccare il bot
+            if os.path.exists('ready.mp4'): os.remove('ready.mp4')
 
-    # --- PHASE 2: SELECT NEXT VIDEO ---
+    # --- PHASE 2: SELECT NEXT ---
     last_author, consecutive_count = None, 0
     if published_ids:
         for full_id in reversed(published_ids):
@@ -92,11 +83,14 @@ async def main():
 
     candidates = []
     for source_id, ig_handle in VIDEO_SOURCES.items():
-        print(f"\n🔍 [SCAN] Analyzing source: {source_id} (@{ig_handle})")
+        print(f"\n🔍 [SCAN] Analyzing: {source_id} (@{ig_handle})")
         try:
             found_count = 0
-            async for msg in client.iter_messages(source_id, limit=10):
-                if not msg.video: continue
+            # Cerchiamo sia Video che Documenti (per i canali privati)
+            async for msg in client.iter_messages(source_id, limit=20):
+                is_video = msg.video or (msg.document and any(msg.document.mime_type.endswith(ext) for ext in ['mp4', 'mov', 'quicktime']))
+                if not is_video: continue
+                
                 found_count += 1
                 current_id = f"{source_id}_{msg.id}"
                 
@@ -110,7 +104,7 @@ async def main():
                     status = f"❌ OUTDATED ({msg.date.strftime('%Y-%m-%d')})"
                     is_valid = False
                 
-                print(f"   [{found_count}] ID: {msg.id} | Date: {msg.date.strftime('%d/%m %H:%M')} | {status}")
+                print(f"   [{found_count}] ID: {msg.id} | Date: {msg.date.strftime('%d/%m %y')} | {status}")
                 
                 if is_valid and not any(c['source'] == str(source_id) for c in candidates):
                     candidates.append({'date': msg.date, 'msg': msg, 'handle': ig_handle, 'id': current_id, 'source': str(source_id)})
@@ -119,7 +113,7 @@ async def main():
         except Exception as e:
             print(f"   ⚠️ Access Error: {e}")
 
-    # Selection Logic (Block of 3)
+    # Selection Logic
     selected_video = None
     if last_author and consecutive_count < 3:
         for cand in candidates:
@@ -131,26 +125,18 @@ async def main():
     if not selected_video and candidates:
         valid_options = [c for c in candidates if c['source'] != last_author or consecutive_count >= 3]
         if not valid_options: valid_options = candidates
-        
         valid_options.sort(key=lambda x: x['date'], reverse=True)
         selected_video = valid_options[0]
-        print(f"\n🎯 [DECISION] Swapping turn. Selected @{selected_video['handle']} (Freshest)")
+        print(f"\n🎯 [DECISION] Swapping turn. Selected @{selected_video['handle']}")
 
-    # --- PHASE 3: PREPARE VIDEO ---
+    # --- PHASE 3: PREPARE ---
     if selected_video and not os.path.exists('ready.mp4'):
         print(f"🎬 [TG] Preparing video from @{selected_video['handle']} ({selected_video['id']})")
         raw_path = await selected_video['msg'].download_media()
-        
-        # FFmpeg: 1080p, CRF 22 (High Quality)
-        subprocess.run([
-            'ffmpeg', '-i', raw_path, '-vf', 'scale=-2:1080', 
-            '-vcodec', 'libx264', '-crf', '22', '-preset', 'faster', 
-            '-acodec', 'aac', '-b:a', '192k', '-y', 'ready.mp4'
-        ])
+        subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:1080', '-vcodec', 'libx264', '-crf', '22', '-preset', 'faster', '-acodec', 'aac', '-b:a', '192k', '-y', 'ready.mp4'])
         
         caption_text = (
-            f"L'energia della serata a Catania! 🌋💃\n\n"
-            f"🎥 Video by @{selected_video['handle']}\n\n"
+            f"L'energia della serata a Catania! 🌋💃\n\n🎥 Video by @{selected_video['handle']}\n\n"
             f"Segui @catanialatinlovers per non perderti i prossimi eventi 🕺✨\n\n"
             f"#CataniaLatinLovers #SalsaCatania #BachataCatania #Sicilia #SocialDance"
         )
@@ -158,10 +144,8 @@ async def main():
         published_ids.append(selected_video['id'])
         with open(db_file, 'w') as f:
             f.write("\n".join(published_ids[-100:]))
-            
         with open('caption.txt', 'w', encoding='utf-8') as f: 
             f.write(caption_text)
-            
         if os.path.exists(raw_path): os.remove(raw_path)
         print(f"✅ [OK] Next Reel ready: {selected_video['id']}")
 
