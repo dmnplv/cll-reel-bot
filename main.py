@@ -3,18 +3,20 @@ from datetime import datetime, timedelta, timezone
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
-# Configurazione variabili d'ambiente
+# --- CONFIGURATION ---
+# Prende i dati dai Secrets di GitHub per sicurezza
 API_ID = int(os.getenv('TG_API_ID') or 0)
 API_HASH = os.getenv('TG_API_HASH')
 SESSION_STRING = os.getenv('TG_SESSION')
+
 INSTAGRAM_ACCOUNT_ID = os.getenv('IG_BUSINESS_ID')
 ACCESS_TOKEN = os.getenv('IG_PAGE_TOKEN')
 GITHUB_REPO = os.getenv('GITHUB_REPOSITORY')
 
-# Parametri di filtraggio
-DAYS_LIMIT = 90 # Limite a 3 mesi per recuperare video recenti senza andare troppo indietro
+# Limite temporale: non pesca video più vecchi di 90 giorni
+DAYS_LIMIT = 90 
 
-# Mappatura Canali Telegram -> Tag Instagram
+# Mappatura Sorgenti: ID Canale Telegram -> Tag Profilo Instagram
 VIDEO_SOURCES = {
     'phorig': 'original.ph_',
     'photogoldct': 'photo_goldsalsa',
@@ -26,7 +28,7 @@ async def main():
     client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
     await client.connect()
 
-    # Caricamento database ID pubblicati
+    # Carica il database degli ID già pubblicati (ultimi 100)
     db_file = 'pubblicati.txt'
     if not os.path.exists(db_file): open(db_file, 'w').close()
     with open(db_file, 'r') as f: 
@@ -34,18 +36,18 @@ async def main():
 
     date_threshold = datetime.now(timezone.utc) - timedelta(days=DAYS_LIMIT)
 
-    # --- FASE 1: PUBBLICAZIONE REEL PREPARATO ---
+    # --- PHASE 1: PUBLICATION (STAFFETTA) ---
+    # Se il file ready.mp4 esiste (creato nel run precedente), lo pubblichiamo
     if os.path.exists('ready.mp4'):
         caption = "Catania Latin Lovers 🌋"
         if os.path.exists('caption.txt'):
             with open('caption.txt', 'r', encoding='utf-8') as f: caption = f.read()
 
-        # Link formattati esattamente come richiesto
         video_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/ready.mp4"
+        print(f"🚀 [IG] Starting publication for: {video_url}")
+        
+        # Step A: Creazione del Container (Reel)
         container_url = f"https://graph.facebook.com/{INSTAGRAM_ACCOUNT_ID}/media"
-        
-        print(f"🚀 [IG] Publishing Reel: {video_url}")
-        
         payload = {
             'media_type': 'REELS',
             'video_url': video_url,
@@ -57,20 +59,27 @@ async def main():
         creation_id = response.get('id')
         
         if creation_id:
-            print(f"✅ [IG] Container created: {creation_id}. Waiting 90s...")
+            print(f"✅ [IG] Container created: {creation_id}. Waiting 90s for processing...")
             time.sleep(90)
+            
+            # Step B: Pubblicazione effettiva
             publish_url = f"https://graph.facebook.com/{INSTAGRAM_ACCOUNT_ID}/media_publish"
             pub_res = requests.post(publish_url, data={'creation_id': creation_id, 'access_token': ACCESS_TOKEN}).json()
+            
             if 'id' in pub_res:
-                print("🔥 [IG] REEL PUBBLICATO!")
+                print("🔥 [IG] REEL PUBLISHED SUCCESSFULLY!")
+                # Pulizia: rimuoviamo i file locali dopo il successo
                 os.remove('ready.mp4')
                 if os.path.exists('caption.txt'): os.remove('caption.txt')
+            else:
+                print(f"❌ [IG] Final publication failed: {pub_res}")
         else:
-            print(f"❌ [IG] Container failed: {response}")
-            # Reset in caso di errore per permettere la rotazione dei video
+            print(f"❌ [IG] Container creation failed: {response}")
+            # Se il container fallisce, resettiamo per permettere al prossimo run di riprovare con un nuovo file
             if os.path.exists('ready.mp4'): os.remove('ready.mp4')
 
-    # --- FASE 2: SCELTA NUOVO VIDEO (LOGICA BLOCCHI DA 3) ---
+    # --- PHASE 2: SELECTION LOGIC (BLOCKS OF 3) ---
+    # Calcoliamo quanti post consecutivi ha fatto l'ultimo autore
     last_author, consecutive_count = None, 0
     if published_ids:
         for full_id in reversed(published_ids):
@@ -84,70 +93,76 @@ async def main():
     
     print(f"\n📊 [STATUS] Last Author: {last_author} ({consecutive_count}/3 consecutive)")
 
+    # Scansioniamo i canali alla ricerca di nuovi video
     candidates = []
     for source_id, ig_handle in VIDEO_SOURCES.items():
-        print(f"\n🔍 [SCAN] Analyzing: {source_id} (@{ig_handle})")
+        print(f"🔍 [SCAN] Analyzing: {source_id} (@{ig_handle})")
         try:
-            found_count = 0
-            # Scansione dei messaggi (include video nativi e documenti video come .mov)
+            found_in_channel = 0
             async for msg in client.iter_messages(source_id, limit=20):
-                # Verifica se il messaggio contiene un video o un documento di tipo video
+                # Riconosce sia video nativi che file video (.mov, .mp4)
                 is_video = msg.video or (msg.document and any(msg.document.mime_type.endswith(ext) for ext in ['mp4', 'mov', 'quicktime']))
                 if not is_video: continue
                 
-                found_count += 1
+                found_count = found_count + 1 if 'found_count' in locals() else 1
                 current_id = f"{source_id}_{msg.id}"
                 
-                status = "✅ VALID"
-                is_valid = True
+                # Check se valido
+                if current_id in published_ids or msg.date < date_threshold:
+                    continue
                 
-                if current_id in published_ids:
-                    status = "❌ ALREADY PUBLISHED"
-                    is_valid = False
-                elif msg.date < date_threshold:
-                    status = f"❌ OUTDATED ({msg.date.strftime('%Y-%m-%d')})"
-                    is_valid = False
-                
-                print(f"   [{found_count}] ID: {msg.id} | Date: {msg.date.strftime('%d/%m %H:%M')} | {status}")
-                
-                if is_valid and not any(c['source'] == str(source_id) for c in candidates):
-                    candidates.append({'date': msg.date, 'msg': msg, 'handle': ig_handle, 'id': current_id, 'source': str(source_id)})
-                
-                if found_count >= 5: break
+                # Aggiungiamo ai candidati (uno per canale)
+                if not any(c['source'] == str(source_id) for c in candidates):
+                    candidates.append({
+                        'date': msg.date, 
+                        'msg': msg, 
+                        'handle': ig_handle, 
+                        'id': current_id, 
+                        'source': str(source_id)
+                    })
+                    break 
         except Exception as e:
-            print(f"   ⚠️ Access Error: {e}")
+            print(f"   ⚠️ Access Error for {source_id}: {e}")
 
-    # Logica di selezione vincitore
+    # Decidiamo quale video preparare
     selected_video = None
+    # Priorità: finire il blocco da 3 se possibile
     if last_author and consecutive_count < 3:
         for cand in candidates:
             if cand['source'] == last_author:
                 selected_video = cand
-                print(f"\n🎯 [DECISION] Continuing block for {last_author}")
+                print(f"🎯 [DECISION] Continuing 3-block for {last_author}")
                 break
 
+    # Altrimenti: passa all'autore che ha il video più recente tra gli altri
     if not selected_video and candidates:
         valid_options = [c for c in candidates if c['source'] != last_author or consecutive_count >= 3]
         if not valid_options: valid_options = candidates
         valid_options.sort(key=lambda x: x['date'], reverse=True)
         selected_video = valid_options[0]
-        print(f"\n🎯 [DECISION] Swapping turn. Selected @{selected_video['handle']}")
+        print(f"🎯 [DECISION] Swapping turn. Next: @{selected_video['handle']}")
 
-    # --- FASE 3: DOWNLOAD E COMPRESSIONE ---
+    # --- PHASE 3: PREPARATION ---
+    # Se abbiamo un vincitore e il "posto" in coda è libero, scarichiamo e comprimiamo
     if selected_video and not os.path.exists('ready.mp4'):
-        print(f"🎬 [TG] Preparing video from @{selected_video['handle']} ({selected_video['id']})")
+        print(f"🎬 [TG] Preparing video from @{selected_video['handle']}")
         raw_path = await selected_video['msg'].download_media()
         
-        # Conversione HQ 1080p
-        subprocess.run(['ffmpeg', '-i', raw_path, '-vf', 'scale=-2:1080', '-vcodec', 'libx264', '-crf', '22', '-preset', 'faster', '-acodec', 'aac', '-b:a', '192k', '-y', 'ready.mp4'])
+        # FFmpeg: Risoluzione 1080p, Qualità Visiva CRF 22, Preset veloce
+        subprocess.run([
+            'ffmpeg', '-i', raw_path, '-vf', 'scale=-2:1080', 
+            '-vcodec', 'libx264', '-crf', '22', '-preset', 'faster', 
+            '-acodec', 'aac', '-b:a', '192k', '-y', 'ready.mp4'
+        ])
         
         caption_text = (
             f"L'energia della serata a Catania! 🌋💃\n\n"
             f"🎥 Video by @{selected_video['handle']}\n\n"
-            f"Segui @catanialatinlovers 🕺✨\n\n"
+            f"Segui @catanialatinlovers per non perderti i prossimi eventi 🕺✨\n\n"
             f"#CataniaLatinLovers #SalsaCatania #BachataCatania #Sicilia #SocialDance"
         )
         
+        # Aggiorna database (mantieni ultimi 100 ID)
         published_ids.append(selected_video['id'])
         with open(db_file, 'w') as f:
             f.write("\n".join(published_ids[-100:]))
@@ -156,7 +171,7 @@ async def main():
             f.write(caption_text)
             
         if os.path.exists(raw_path): os.remove(raw_path)
-        print(f"✅ [OK] Next Reel ready: {selected_video['id']}")
+        print(f"✅ [OK] Next Reel ready in repo: {selected_video['id']}")
 
     await client.disconnect()
 
