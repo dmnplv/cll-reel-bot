@@ -39,10 +39,11 @@ jobs:
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
-          git add pubblicati.txt ready.mp4 caption.txt || true
+          git add pubblicati.txt || true
+          git rm ready.mp4 caption.txt || true # Rimuove i file postati dal repo
           git stash
           git pull --rebase origin main
           git stash pop || true
-          git add pubblicati.txt ready.mp4 caption.txt || true
-          git commit -m "Update HQ video, caption and database 🌋" || true
+          git add pubblicati.txt || true
+          git commit -m "Cleanup and update DB 🌋" || true
           git push origin main
