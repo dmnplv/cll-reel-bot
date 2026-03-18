@@ -1,20 +1,21 @@
 name: CLL Auto Post
 on:
   schedule:
-    - cron: '0 9,13,20 * * *' # Scatta alle 10:00, 14:00, 21:00 italiane (UTC+1)
-  workflow_dispatch: # Permette l'avvio manuale per i test
+    # Gira ogni 2 ore circa negli orari caldi (Mattina, Pomeriggio, Sera)
+    # 08:00, 10:00, 13:00, 15:00, 19:00, 21:00 IT (UTC+1)
+    - cron: '0 7,9,12,14,18,20 * * *'
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Permesso necessario per salvare i file nel repo
-      
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Scarica tutta la cronologia per evitare errori di push
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,25 +41,21 @@ jobs:
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
           
-          # 1. Aggiunta iniziale dei file generati o modificati dallo script
+          # Aggiunta file generati
           git add pubblicati.txt ready.mp4 caption.txt || true
           
-          # 2. Sincronizzazione sicura per evitare conflitti
+          # Sincronizzazione sicura
           git stash
           git pull --rebase origin main
           git stash pop || true
           
-          # 3. Logica di pulizia: se il video è stato postato (quindi cancellato dallo script), 
-          # rimuovilo dal repo. Se è nuovo (pronto per il prossimo giro), aggiungilo.
+          # Se il video è stato postato, lo rimuove. Se è nuovo, lo aggiunge.
           if [ ! -f ready.mp4 ]; then
             git rm ready.mp4 caption.txt --ignore-unmatch || true
           else
             git add ready.mp4 caption.txt || true
           fi
           
-          # 4. Conferma finale del database ID
           git add pubblicati.txt || true
-          
-          # 5. Commit e Push finale
-          git commit -m "Sync video, Catania Geotag and database 🌋" || echo "Nothing to commit"
+          git commit -m "Automated update: Sync video and database 🌋" || echo "Nothing to commit"
           git push origin main
