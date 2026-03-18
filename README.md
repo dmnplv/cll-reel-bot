@@ -10,7 +10,7 @@
 
 ## 🛠 Tech Stack
 [![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org)
-![GitHub Actions](https://img.shields.io/github/workflow/status/dmnplv/cll-reel-bot/CI)](https://github.com/dmnplv/cll-reel-bot/actions)
+[![GitHub Actions](https://img.shields.io/github/workflow/status/dmnplv/cll-reel-bot/CI)](https://github.com/dmnplv/cll-reel-bot/actions)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)](https://telegram.org)
 [![Instagram](https://img.shields.io/badge/Instagram-API-purple?logo=instagram)](https://developers.facebook.com/docs/instagram)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-4.4-orange?logo=ffmpeg)](https://ffmpeg.org)
