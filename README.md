@@ -1,35 +1,49 @@
-# 🌋 Catania Latin Lovers - Reel Automator
+# 🌋 Catania Latin Lovers | Reel Automator
+[![Python Version](https://img.shields.io)](https://www.python.org)
+[![Automation](https://img.shields.io)](https://github.com)
+[![License](https://img.shields.io)](LICENSE)
 
-Questo progetto è un sistema di automazione intelligente che preleva i migliori video di Salsa e Bachata dai canali Telegram dei principali videomaker siciliani e li pubblica come **Reels in Alta Qualità (1080p)** sul profilo Instagram di **Catania Latin Lovers**.
-
-## 🚀 Come Funziona
-Il sistema opera in modalità **"Staffetta"** tramite GitHub Actions per garantire la massima stabilità:
-1.  **Giro A (Preparazione):** Il bot scansiona le sorgenti Telegram, sceglie il video più recente, lo comprime in HD (1080p) e lo carica nel repository.
-2.  **Giro B (Pubblicazione):** Al turno successivo, il video caricato viene inviato alle API di Instagram con i relativi crediti (tag) del videomaker e Geotag di Catania.
-
-## 🛠 Caratteristiche Tecniche
-- **HQ Video Processing:** Utilizza `FFmpeg` con parametri `CRF 22` per mantenere una qualità visiva eccellente sotto i 100MB.
-- **Smart Rotation:** Logica di pubblicazione a "blocchi da 3" per mantenere l'estetica della griglia Instagram ordinata per autore.
-- **Auto-Cleanup:** Il database `pubblicati.txt` si auto-pulisce mantenendo solo gli ultimi 100 ID per non appesantire il repository.
-- **Geotagging:** Ogni post viene localizzato automaticamente a Catania per massimizzare la visibilità locale.
-
-## 📡 Sorgenti Monitorate
-Il bot monitora costantemente i seguenti creator:
-- [@original.ph_](https://www.instagram.com)
-- [@photo_goldsalsa](https://www.instagram.com)
-- [@bachata_social_sicilia](https://www.instagram.com)
-- [@elegancia_latina_catania](https://www.instagram.com)
-- [@latin__chic](https://www.instagram.com)
-
-## ⏰ Programmazione Post
-L'automazione scatta **6 volte al giorno** per garantire una copertura costante negli orari di maggior traffico (Mattina, Pausa Pranzo, Prime Time).
-
-## 🔒 Requisiti & Secrets
-Per funzionare, il progetto richiede i seguenti **GitHub Secrets**:
-- `TG_API_ID` / `TG_API_HASH`: Credenziali Telegram API.
-- `TG_SESSION`: String Session di Telethon (generata via script).
-- `IG_BUSINESS_ID`: ID dell'account Instagram Business.
-- `IG_PAGE_TOKEN`: Token di accesso alla pagina Facebook (con scadenza "Never").
+> **L'automazione intelligente che connette la community latina di Catania.**  
+> Preleva, elabora e pubblica i migliori momenti di Salsa e Bachata dai canali Telegram dei top videomaker siciliani direttamente su Instagram.
 
 ---
-*Creato con ❤️ per la community latina di Catania.*
+
+## 🛠 Tech Stack
+![Python](https://img.shields.io)
+![GitHub Actions](https://img.shields.io)
+![Telegram](https://img.shields.io)
+![Instagram](https://img.shields.io)
+![FFmpeg](https://img.shields.io)
+
+---
+
+## 💡 Il Problema & La Soluzione
+I contenuti video di alta qualità (200-500MB in formato `.mov`) sono difficili da gestire manualmente tra diverse piattaforme. 
+Questo bot risolve il problema attraverso:
+- **Cloud Processing:** Utilizzo di server GitHub per scaricare e processare file pesanti.
+- **FFmpeg Encoding:** Compressione dinamica a **1080p (CRF 22)** per bilanciare qualità visiva e limiti API di Meta.
+- **Relay Architecture:** Un sistema a "staffetta" che bypassa i blocchi di sicurezza degli hosting gratuiti sfruttando la velocità dei server GitHub.
+
+## 🚀 Caratteristiche Principali
+*   **Smart Source Rotation:** Logica di pubblicazione a "blocchi da 3" per mantenere l'estetica della griglia Instagram coerente per autore.
+*   **Catania Geotagging:** Inserimento automatico della posizione geografica per massimizzare il reach locale.
+*   **Auto-Cleanup Database:** Gestione efficiente degli ID pubblicati per evitare duplicati senza appesantire il repository.
+*   **Never-Expiring Access:** Integrazione con token di lunga durata (Meta Graph API) per un'operatività 24/7 senza interventi manuali.
+
+## 📡 Sorgenti & Partner
+Il bot valorizza il lavoro dei creator locali taggandoli automaticamente:
+- [@original.ph_](https://www.instagram.com) 🎥
+- [@photo_goldsalsa](https://www.instagram.com) 📸
+- [@bachata_social_sicilia](https://www.instagram.com) 🌴
+- [@elegancia_latina_catania](https://www.instagram.com) ✨
+- [@latin__chic](https://www.instagram.com) 🔥
+
+## ⚙️ Configurazione
+Il progetto è configurato tramite **GitHub Secrets** per proteggere le credenziali:
+- `TG_SESSION`: String Session persistente per Telethon.
+- `IG_PAGE_TOKEN`: Token di accesso "Never-Expire" (Page Access Token).
+- `IG_BUSINESS_ID`: Instagram Business Account ID.
+
+---
+*Sviluppato per potenziare la scena caraibica catanese.*  
+**Catania Latin Lovers** 🌋
