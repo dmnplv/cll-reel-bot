@@ -14,6 +14,9 @@ IG_ID = c(os.getenv('IG_BUSINESS_ID'))
 IG_TOKEN = c(os.getenv('IG_PAGE_TOKEN'))
 REPO = os.getenv('GITHUB_REPOSITORY')
 
+# ID Geografico di Catania per Instagram
+CATANIA_LOCATION_ID = "115421711794270"
+
 SOURCES = {
     'phorig': 'original.ph_',
     'photogoldct': 'photo_goldsalsa',
@@ -40,13 +43,18 @@ async def main():
         if os.path.exists('caption.txt'):
             with open('caption.txt', 'r', encoding='utf-8') as f: caption = f.read()
 
+        # AGGIUNTO SLASH / dopo githubusercontent.com
         video_url = f"https://raw.githubusercontent.com/{REPO}/main/ready.mp4"
-        print(f"🚀 [IG] Pubblicazione Reel: {video_url}")
+        print(f"🚀 [IG] Pubblicazione Reel con Geotag Catania: {video_url}")
         
+        # AGGIUNTO SLASH / v21.0 / prima di IG_ID
         target_url = f"https://graph.facebook.com/{IG_ID}/media"
         r = requests.post(target_url, data={
-            'media_type': 'REELS', 'video_url': video_url, 
-            'caption': caption, 'access_token': IG_TOKEN
+            'media_type': 'REELS', 
+            'video_url': video_url, 
+            'caption': caption, 
+            'location_id': CATANIA_LOCATION_ID,
+            'access_token': IG_TOKEN
         }).json()
         
         if 'id' in r:
@@ -63,19 +71,17 @@ async def main():
                 print(f"❌ [IG] Errore finale: {res}")
         else:
             print(f"❌ [IG] Errore container: {r}")
-            # Se l'URL è già stato usato o il file è corrotto, resettiamo per sbloccare
             if "already" in str(r).lower() or "100" in str(r):
-                print("⚠️ [IG] Reset file locale per errore critico.")
-                os.remove('ready.mp4')
+                print("⚠️ [IG] Reset file locale.")
+                if os.path.exists('ready.mp4'): os.remove('ready.mp4')
 
     # --- FASE 2: SCELTA NUOVO VIDEO (LOGICA BLOCCHI DA 3) ---
-    last_source_str = None
-    count_consecutive = 0
+    last_source_str, count_consecutive = None, 0
     if gia_postati:
         for full_id in reversed(gia_postati):
             if "_" in full_id:
                 parts = full_id.rsplit('_', 1)
-                s_name = parts[0] # Identifica l'autore (es: phorig)
+                s_name = parts[0]
                 if last_source_str is None:
                     last_source_str = s_name
                     count_consecutive = 1
@@ -86,45 +92,41 @@ async def main():
     print(f"📊 [LOG] Ultimo autore: {last_source_str} (Consecutivi: {count_consecutive})")
 
     winner = None
-    # Sotto-fase A: Continua il blocco dello stesso autore
+    # Se l'ultimo autore ha postato meno di 3 volte, cerchiamo ancora lui
     if last_source_str and count_consecutive < 3:
-        target = int(last_source_str) if last_source_str.replace('-','').isdigit() else last_source_str
+        # Gestisce sia username stringa che ID numerico
         try:
-            print(f"🔍 [TG] Cerco di completare il blocco per: {target}")
-            async for m in client.iter_messages(target, limit=100):
+            target = int(last_source_str) if last_source_str.lstrip('-').isdigit() else last_source_str
+            print(f"🔍 [TG] Scansione target: {target}")
+            async for m in client.iter_messages(target, limit=50):
                 m_id = f"{last_source_str}_{m.id}"
                 if m.video and m_id not in gia_postati and m.date > limit_date:
                     winner = {'msg': m, 'tag': SOURCES.get(target, 'catanialatinlovers'), 'id': m_id, 'date': m.date}
                     break
-        except: pass
+        except Exception as e:
+            print(f"Errore scansione consecutiva: {e}")
 
-    # Sotto-fase B: Cerca il più recente tra tutte le fonti
+    # Se non c'è un vincitore consecutivo o abbiamo finito i 3 post, cerchiamo il più nuovo tra tutti
     if not winner:
         all_candidates = []
         for src, tag in SOURCES.items():
             try:
                 print(f"🔍 [TG] Scansione: {src}...")
-                async for m in client.iter_messages(src, limit=100):
+                async for m in client.iter_messages(src, limit=50):
                     m_id = f"{src}_{m.id}"
                     if m.video and m_id not in gia_postati and m.date > limit_date:
                         all_candidates.append({'date': m.date, 'msg': m, 'tag': tag, 'id': m_id})
                         break
-                    elif m.video:
-                        print(f"   (Salto {m_id}: già postato o vecchio)")
             except: continue
-        
         if all_candidates:
             all_candidates.sort(key=lambda x: x['date'], reverse=True)
             winner = all_candidates[0]
 
-    # --- FASE 3: PREPARAZIONE PROSSIMO GIRO ---
+    # --- FASE 3: DOWNLOAD & PREPARAZIONE ---
     if winner:
-        if os.path.exists('ready.mp4'):
-            print("⚠️ [SKIP] ready.mp4 ancora nel repo. Non scarico nuovi video.")
-        else:
-            print(f"🎬 [TG] Download & Compressione video di @{winner['tag']}")
+        if not os.path.exists('ready.mp4'):
+            print(f"🎬 [TG] Preparazione video di @{winner['tag']} ({winner['id']})")
             raw_path = await winner['msg'].download_media()
-            
             subprocess.run([
                 'ffmpeg', '-i', raw_path, '-vf', 'scale=-2:1080', 
                 '-vcodec', 'libx264', '-crf', '22', '-preset', 'faster', 
@@ -134,21 +136,17 @@ async def main():
             new_caption = (
                 f"L'energia della serata a Catania! 🌋💃\n\n"
                 f"🎥 Video by @{winner['tag']}\n\n"
-                f"Segui @catanialatinlovers 🕺✨\n\n"
-                f"#CataniaLatinLovers #SalsaCatania #BachataCatania"
+                f"Segui @catanialatinlovers per non perderti i prossimi eventi 🕺✨\n\n"
+                f"#CataniaLatinLovers #SalsaCatania #BachataCatania #Sicilia #SocialDance"
             )
             
             gia_postati.append(winner['id'])
-            with open('pubblicati.txt', 'w') as f: 
-                f.write("\n".join(gia_postati[-100:]))
-            
-            with open('caption.txt', 'w', encoding='utf-8') as f: 
-                f.write(new_caption)
-            
+            with open('pubblicati.txt', 'w') as f: f.write("\n".join(gia_postati[-100:]))
+            with open('caption.txt', 'w', encoding='utf-8') as f: f.write(new_caption)
             if os.path.exists(raw_path): os.remove(raw_path)
             print(f"✅ [OK] Prossimo Reel pronto: {winner['id']}")
     else:
-        print("ℹ️ [INFO] Nessun video nuovo trovato nei canali.")
+        print("ℹ️ [INFO] Nessun video nuovo trovato.")
 
     await client.disconnect()
 
