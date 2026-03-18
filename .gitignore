@@ -1,0 +1,6 @@
+__pycache__/
+*.session
+*.mp4
+*.txt
+!pubblicati.txt
+!README.md
