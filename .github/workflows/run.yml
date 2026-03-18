@@ -1,8 +1,7 @@
 name: CLL Auto Post
 on:
   schedule:
-    # 10:00, 14:00 e 21:00 (Ora Italiana)
-    - cron: '0 9,13,20 * * *' 
+    - cron: '0 9,13,20 * * *' # 10:00, 14:00, 21:00 IT
   workflow_dispatch:
 
 jobs:
@@ -11,8 +10,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -26,7 +24,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install telethon requests
 
-      - name: Run Automator Script
+      - name: Run script
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
@@ -39,11 +37,14 @@ jobs:
         run: |
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
-          git add pubblicati.txt || true
-          git rm ready.mp4 caption.txt || true # Rimuove i file postati dal repo
+          git add pubblicati.txt ready.mp4 caption.txt || true
           git stash
           git pull --rebase origin main
           git stash pop || true
-          git add pubblicati.txt || true
-          git commit -m "Cleanup and update DB 🌋" || true
+          git add pubblicati.txt ready.mp4 caption.txt || true
+          git commit -m "Update HQ video, caption and database 🌋" || true
+          # Se il video è stato postato, lo script lo ha cancellato localmente.
+          # Questo comando lo cancella anche dal repository remoto dopo il push.
+          git rm ready.mp4 caption.txt --ignore-unmatch || true
+          git commit -m "Cleanup posted media" || true
           git push origin main
