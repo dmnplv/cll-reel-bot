@@ -1,7 +1,7 @@
 # 🌋 Catania Latin Lovers | Reel Automator
-[![Python Version](https://img.shields.io)](https://www.python.org)
-[![Automation](https://img.shields.io)](https://github.com)
-[![License](https://img.shields.io)](LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org)
+[![Automation](https://img.shields.io/github/workflow/status/dmnplv/cll-reel-bot/CI)](https://github.com/dmnplv/cll-reel-bot/actions)
+[![License](https://img.shields.io/github/license/dmnplv/cll-reel-bot)](LICENSE)
 
 > **L'automazione intelligente che connette la community latina di Catania.**  
 > Preleva, elabora e pubblica i migliori momenti di Salsa e Bachata dai canali Telegram dei top videomaker siciliani direttamente su Instagram.
@@ -9,11 +9,11 @@
 ---
 
 ## 🛠 Tech Stack
-![Python](https://img.shields.io)
-![GitHub Actions](https://img.shields.io)
-![Telegram](https://img.shields.io)
-![Instagram](https://img.shields.io)
-![FFmpeg](https://img.shields.io)
+[![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org)
+![GitHub Actions](https://img.shields.io/github/workflow/status/dmnplv/cll-reel-bot/CI)](https://github.com/dmnplv/cll-reel-bot/actions)
+[![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)](https://telegram.org)
+[![Instagram](https://img.shields.io/badge/Instagram-API-purple?logo=instagram)](https://developers.facebook.com/docs/instagram)
+[![FFmpeg](https://img.shields.io/badge/FFmpeg-4.4-orange?logo=ffmpeg)](https://ffmpeg.org)
 
 ---
 
