@@ -4,18 +4,18 @@ on:
     # Gira ogni 2 ore circa negli orari caldi (Mattina, Pomeriggio, Sera)
     # 08:00, 10:00, 13:00, 15:00, 19:00, 21:00 IT (UTC+1)
     - cron: '0 7,9,12,14,18,20 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Tasto manuale per il test
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Necessario per pushare i cambiamenti nel repo
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Scarica tutta la cronologia per un rebase pulito
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -41,21 +41,30 @@ jobs:
           git config --global user.name 'CLL-Bot'
           git config --global user.email 'bot@catanialatinlovers.it'
           
-          # Aggiunta file generati
+          # 1. Prepariamo i file modificati dallo script Python
           git add pubblicati.txt ready.mp4 caption.txt || true
           
-          # Sincronizzazione sicura
+          # 2. Usiamo lo Stash per isolare le modifiche locali prima del pull
           git stash
-          git pull --rebase origin main
-          git stash pop || true
           
-          # Se il video è stato postato, lo rimuove. Se è nuovo, lo aggiunge.
+          # 3. Sincronizziamo con il server (Rebase per evitare merge commit inutili)
+          git pull --rebase origin main
+          
+          # 4. Recuperiamo i file (Database e Media) dallo stash
+          git stash pop || echo "Stash empty, proceeding..."
+          
+          # 5. LOGICA ANTI-LOOP: 
+          # Se lo script ha cancellato ready.mp4 (perché postato), lo rimuoviamo da Git.
+          # Se il file esiste (nuovo scaricato), lo aggiungiamo.
           if [ ! -f ready.mp4 ]; then
             git rm ready.mp4 caption.txt --ignore-unmatch || true
           else
             git add ready.mp4 caption.txt || true
           fi
           
+          # Riaffermiamo il database (Priorità assoluta per evitare l'amnesia del bot)
           git add pubblicati.txt || true
-          git commit -m "Automated update: Sync video and database 🌋" || echo "Nothing to commit"
+          
+          # 6. Commit finale e Push
+          git commit -m "Automated update: Sync video and database (Anti-loop fix) 🌋" || echo "Nothing to commit"
           git push origin main
