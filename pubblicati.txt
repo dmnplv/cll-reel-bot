@@ -1,4 +1,3 @@
-photogoldct_568
 photogoldct_567
 photogoldct_566
 photogoldct_565
@@ -98,3 +97,4 @@ photogoldct_614
 photogoldct_613
 photogoldct_612
 bachata_social_sicilia_3063
+bachata_social_sicilia_3062
